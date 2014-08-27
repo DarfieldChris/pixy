@@ -2,8 +2,6 @@
 
 TARGET_BUILD_FOLDER=../build
 
-rm -r $TARGET_BUILD_FOLDER
-
 mkdir $TARGET_BUILD_FOLDER
 mkdir $TARGET_BUILD_FOLDER/pixymon/
 mkdir $TARGET_BUILD_FOLDER/pixymon/src

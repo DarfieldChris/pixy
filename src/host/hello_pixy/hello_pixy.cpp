@@ -53,7 +53,7 @@ int main(int argc, char * argv[])
   if(!pixy_init_status == 0)
   {
     // Error initializing Pixy //
-    return;
+    return 1;
   }
 
   // Request Pixy firmware version //
