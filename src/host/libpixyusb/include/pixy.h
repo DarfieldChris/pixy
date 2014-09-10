@@ -30,9 +30,6 @@ extern "C"
   #define TYPE_NORMAL                           0
   #define TYPE_COLOR_CODE                       1
 
-  #define CAMERA_MODE_25FPS_1280X800            0
-  #define CAMERA_MODE_50FPS_640X400             1
-
   struct Block
   {
     uint16_t type;
@@ -46,8 +43,11 @@ extern "C"
 
   /**
     @brief Creates a connection with Pixy and listens for Pixy messages.
-    @return   0   Success
-    @return  -1   Error
+    @return  0                         Success
+    @return  PIXY_ERROR_USB_IO         USB Error: I/O
+    @return  PIXY_ERROR_NOT_FOUND      USB Error: Pixy not found
+    @return  PIXY_ERROR_USB_BUSY       USB Error: Busy
+    @return  PIXY_ERROR_USB_NO_DEVICE  USB Error: No device
   */
   int pixy_init();
 
@@ -59,9 +59,14 @@ extern "C"
     @param[out] blocks     Address of an array in which to copy the blocks to.
                            The array must be large enough to write 'max_blocks' number
                            of Blocks to.
-    @return     Number of blocks copied.
+    @return  Non-negative                  Success: Number of blocks copied
+    @return  PIXY_ERROR_USB_IO             USB Error: I/O
+    @return  PIXY_ERROR_NOT_FOUND          USB Error: Pixy not found
+    @return  PIXY_ERROR_USB_BUSY           USB Error: Busy
+    @return  PIXY_ERROR_USB_NO_DEVICE      USB Error: No device
+    @return  PIXY_ERROR_INVALID_PARAMETER  Invalid pararmeter specified
   */
-  uint16_t pixy_get_blocks(uint16_t max_blocks, struct Block * blocks);
+  int pixy_get_blocks(uint16_t max_blocks, struct Block * blocks);
 
   /**
     @brief      Send a command to Pixy.
@@ -77,80 +82,138 @@ extern "C"
   void pixy_close();
 
   /**
-    @brief     Set Pixy camera mode
-    @param[in] mode  Camera mode.
+    @brief Send description of pixy error to stdout.
+    @param[in] error_code  Pixy error code
+  */
+  void pixy_error(int error_code);
+
+  /**
+    @brief  Set color of pixy LED.
+    @param[in] red   Brightness value for red LED element.   [0, 255] 0 = Off, 255 = On
+    @param[in] green Brightness value for green LED element. [0, 255] 0 = Off, 255 = On
+    @param[in] blue  Brightness value for blue LED element.  [0, 255] 0 = Off, 255 = On
+    @return     0         Success
+    @return     Negative  Error
+  */
+  int pixy_led_set_RGB(uint8_t red, uint8_t green, uint8_t blue);
+
+  /**
+    @brief  Set pixy LED maximum current.
+    @param[in] current  Maximum current (microamps).
+    @return     0         Success
+    @return     Negative  Error
+  */
+  int pixy_led_set_max_current(uint32_t current);
+
+  /**
+    @brief   Get pixy LED maximum current.
+    @return  Maximum LED current value (microamps).
+  */
+  int pixy_led_get_max_current();
+
+  /**
+    @brief    Enable or disable pixy camera auto white balance.
+    @param    enable  1: Enable white balance.
+                      0: Disable white balance.
+    @return     0         Success
+    @return     Negative  Error
+  */
+  int pixy_cam_set_auto_white_balance(uint8_t value);
+
+  /**
+    @brief    Get pixy camera auto white balance setting.
+    @return     1         Auto white balance is enabled.
+    @return     0         Auto white balance is disabled.
+    @return     Negative  Error
+  */
+  int pixy_cam_get_auto_white_balance();
+
+  /**
+    @brief   Get pixy camera white balance()
+    @return  Composite value for RGB white balance:
+             white balance = green_value + (red_value << 8) + (blue << 16)
+  */
+  uint32_t pixy_cam_get_white_balance_value();
+
+  /**
+    @brief     Set pixy camera white balance.
+    @param[in] red    Red white balance value.
+    @param[in] green  Green white balance value.
+    @param[in] blue   Blue white balance value.
+    @return     0         Success
+    @return     Negative  Error
+  */
+  int pixy_cam_set_white_balance_value(uint8_t red, uint8_t green, uint8_t blue);
+
+  /**
+    @brief     Enable or disable pixy camera auto exposure compensation.
+    @param[in] enable  0: Disable auto exposure compensation.
+                       1: Enable auto exposure compensation.
+    @return     0         Success
+    @return     Negative  Error
+  */
+  int pixy_cam_set_auto_exposure_compensation(uint8_t enable);
+
+  /**
+    @brief     Get pixy camera auto exposure compensation setting.
+    @return     1         Auto exposure compensation enabled.
+    @return     0         Auto exposure compensation disabled.
+    @return     Negative  Error
+  */
+  int pixy_cam_get_auto_exposure_compensation();
+
+
+
+
+  /**
+    @brief     Set pixy camera exposure compensation.
+    @param[in] gain  Camera gain.
+    @param[in] comp  Camera exposure compensation.
     @return     0    Success
     @return    -1    Error
   */
-  int      pixy_set_camera_mode(int mode);
+  int pixy_cam_set_exposure_compensation(uint8_t gain, uint16_t compensation);
+
+  // TODO //
+  // TODO -- What should this return? //
+  void pixy_cam_get_exposure_compensation();
+  // TODO //
 
   /**
-    @brief     Get Pixy camera mode.
-    @return     0    Camera Mode 0: 25 FPS, 1280x800
-    @return     1    Camera Mode 1: 50 FPS, 640x400
-    @return    -1    Error
-  */
-  int      pixy_get_camera_mode();
-
-  /**
-    @brief    Enable or disable auto white balance.
-    @param    value  true:  Enable white balance.
-                     false: Disable white balance.
+    @brief     Set pixy camera brightness.
+    @param[in] brightness  Brightness value.
     @return     0    Success
     @return    -1    Error
-
   */
-  int      pixy_set_auto_white_balance(int value);
+  int pixy_cam_set_brightness(uint8_t brightness);
 
   /**
-    @brief    Get auto white balance setting.
-    @return   true    Auto white balance is enabled.
-    @return   false   Auto white balance is disabled.
+    @brief     Get pixy camera brightness.
+    @return    Brightness value.
   */
-  int      pixy_get_auto_white_balance();
+  uint8_t pixy_cam_get_brightness();
 
   /**
-    @brief    Set camera white balance.
-    @param    white_balance
-    @return     0     Success
-    @return    -1     Error
+    @brief     Get pixy servo axis position.
+    TODO: Add description of usage.
   */
-  int      pixy_set_white_balance(uint32_t white_balance);
+  uint32_t pixy_cam_get_position(int axis);
 
   /**
-    @brief   Get camera white balance();
-
+    @brief     Set pixy servo axis position.
+    TODO: Add description of usage.
   */
-  uint32_t pixy_get_white_balance();
-  int      pixy_set_auto_exposure_compensation(int enabled);
-  int      pixy_get_auto_exposure_compensation() ;
-  int      pixy_set_exposure_compensation(uint32_t compensation);
-  int      pixy_set_brightness(uint8_t brightness);
-  uint8_t  pixy_get_brightness();
-  int      pixy_set_light_mode(uint8_t mode);
-  int      pixy_get_light_mode();
+  uint32_t pixy_rcs_set_position(int axis, uint16_t position);
 
-  // Add:
-  //
-  // cam_setMode
-  // cam_getMode
-  // cam_setAWB
-  // cam_getAWB
-  // cam_setWBV
-  // cam_getWBV
-  // cam_setAEC
-  // cam_getAEC
-  // cam_setECV
-  // cam_getECV
-  // cam_setBrightness
-  // cam_getBrightness
-  // cam_setLightMode
-  // cam_getLightMode
-  // cam_testPattern
-  // cam_getFrame
-  // cam_setRegister
-  // cam_getRegister
-  //
+  // TODO //
+  // TODO //
+  void pixy_rcs_set_frequency(void);
+  void pixy_get_firmware_version(void);
+  // TODO //
+  // TODO //
+
+
+
 
 #ifdef __cplusplus
 }

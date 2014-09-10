@@ -20,6 +20,8 @@
 #include <string.h>
 #include "pixy.h"
 
+#include <pthread.h>
+
 #define BLOCK_BUFFER_SIZE    25
 
 // Pixy Block buffer // 
@@ -29,23 +31,21 @@ void handle_SIGINT(int unused)
 {
   // On CTRL+C - abort! //
 
-  // Disconnect from Pixy //
-  pixy_close();
-
+  printf("\nBye!\n");
   exit(0);
 }
 
 int main(int argc, char * argv[])
 {
   int      index;
-  uint16_t blocks_copied;
+  int      blocks_copied;
   int      pixy_init_status;
 
   // Catch CTRL+C (SIGINT) signals //
   signal(SIGINT, handle_SIGINT);
-  
+
   printf("Hello Pixy: libpixyusb Version: %s\n", __LIBPIXY_VERSION__);
-  
+
   // Connect to Pixy //
   pixy_init_status = pixy_init();
 
@@ -53,7 +53,10 @@ int main(int argc, char * argv[])
   if(!pixy_init_status == 0)
   {
     // Error initializing Pixy //
-    return 1;
+    printf("pixy_init(): ");
+    pixy_error(pixy_init_status);
+
+    return pixy_init_status;
   }
 
   // Request Pixy firmware version //
@@ -64,11 +67,14 @@ int main(int argc, char * argv[])
     uint16_t   version[3];
     int        return_value;
 
-    return_value = pixy_command("version",  0, &response, &version_length, &pixy_version, 0);
+    return_value = pixy_command("version",  END_OUT_ARGS, &response, &version_length, &pixy_version, END_IN_ARGS);
 
     if (return_value) {
       // Error //
-      printf("Failed to retrieve Pixy firmware version. Error: %d\n", return_value);
+      printf("Failed to retrieve Pixy firmware version. ");
+      pixy_error(return_value);
+
+      return return_value;
     } else {
       // Success //
       memcpy((void *) version, pixy_version, 3 * sizeof(uint16_t));
@@ -96,7 +102,7 @@ int main(int argc, char * argv[])
     // Enable auto white balance //
     return_value = pixy_command("cam_setAWB", 0x01, 1, 0, &response, 0);
 
-    // Execute remote procedure call "cam_getAWB" with no output (host->pixy) parameters 
+    // Execute remote procedure call "cam_getAWB" with no output (host->pixy) parameters
     //
     //   Parameters:                 Notes:
     //
@@ -117,6 +123,13 @@ int main(int argc, char * argv[])
   {
     // Get blocks from Pixy //
     blocks_copied = pixy_get_blocks(BLOCK_BUFFER_SIZE, &blocks[0]);
+
+    if(blocks_copied < 0) {
+      // Error: pixy_get_blocks //
+      printf("pixy_get_blocks(): ");
+      pixy_error(blocks_copied);
+      usleep(250000);
+    }
 
     // Display received blocks //
     for(index = 0; index != blocks_copied; ++index) {
