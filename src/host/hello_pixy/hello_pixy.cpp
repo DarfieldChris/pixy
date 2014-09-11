@@ -20,8 +20,6 @@
 #include <string.h>
 #include "pixy.h"
 
-#include <pthread.h>
-
 #define BLOCK_BUFFER_SIZE    25
 
 // Pixy Block buffer // 

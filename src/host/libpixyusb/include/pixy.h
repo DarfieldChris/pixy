@@ -107,7 +107,8 @@ extern "C"
 
   /**
     @brief   Get pixy LED maximum current.
-    @return  Maximum LED current value (microamps).
+    @return     Non-negative Maximum LED current value (microamps).
+    @return     Negative     Error
   */
   int pixy_led_get_max_current();
 
@@ -162,36 +163,40 @@ extern "C"
   */
   int pixy_cam_get_auto_exposure_compensation();
 
-
-
-
   /**
     @brief     Set pixy camera exposure compensation.
     @param[in] gain  Camera gain.
     @param[in] comp  Camera exposure compensation.
-    @return     0    Success
-    @return    -1    Error
+    @return     0         Success
+    @return     Negative  Error
   */
   int pixy_cam_set_exposure_compensation(uint8_t gain, uint16_t compensation);
 
-  // TODO //
-  // TODO -- What should this return? //
-  void pixy_cam_get_exposure_compensation();
-  // TODO //
+  /**
+    @brief     Get pixy camera exposure compensation.
+    @param[out] gain  Camera gain.
+    @param[out] comp  Camera exposure compensation.
+    @return     0         Success
+    @return     Negative  Error
+  */
+  int pixy_cam_get_exposure_compensation(uint8_t * gain, uint16_t * compensation);
 
   /**
     @brief     Set pixy camera brightness.
     @param[in] brightness  Brightness value.
-    @return     0    Success
-    @return    -1    Error
+    @return     0         Success
+    @return     Negative  Error
   */
   int pixy_cam_set_brightness(uint8_t brightness);
 
   /**
     @brief     Get pixy camera brightness.
-    @return    Brightness value.
+    @return     Non-negative Brightness value.
+    @return     Negative     Error
   */
-  uint8_t pixy_cam_get_brightness();
+  int pixy_cam_get_brightness();
+
+
 
   /**
     @brief     Get pixy servo axis position.
@@ -206,13 +211,17 @@ extern "C"
   uint32_t pixy_rcs_set_position(int axis, uint16_t position);
 
   // TODO //
-  // TODO //
   void pixy_rcs_set_frequency(void);
-  void pixy_get_firmware_version(void);
-  // TODO //
-  // TODO //
 
-
+  /**
+    @brief    Get pixy firmware version.
+    @param[out]  major  Major version component
+    @param[out]  minor  Minor version component
+    @param[out]  build  Build identifier
+    @return      0         Success
+    @return      Negative  Error
+  */
+  int pixy_get_firmware_version(uint16_t * major, uint16_t * minor, uint16_t * build);
 
 
 #ifdef __cplusplus

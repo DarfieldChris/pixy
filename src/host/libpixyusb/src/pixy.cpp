@@ -201,40 +201,71 @@ extern "C"
     }
   }
 
-
-
-
   int pixy_cam_set_exposure_compensation(uint8_t gain, uint16_t compensation)
   {
-    //////////////////////////////////////
-    // UNTESTED                         //
-    //////////////////////////////////////
+    int      return_value;
+    uint32_t chirp_response;
+    uint32_t exposure;
 
+    exposure = gain + (compensation << 8);
+
+    return_value = pixy_command("cam_setECV", CRP_UINT32, exposure, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+
+    return return_value;
   }
 
-  void pixy_cam_get_exposure_compensation()
+  int pixy_cam_get_exposure_compensation(uint8_t * gain, uint16_t * compensation)
   {
-    //////////////////////////////////////
-    // UNTESTED                         //
-    //////////////////////////////////////
+    uint32_t exposure;
+    int      return_value;
 
+    return_value = pixy_command("cam_getECV", END_OUT_ARGS, &exposure, END_IN_ARGS);
+
+    if (return_value < 0) {
+      // Chirp error //
+      return return_value;
+    }
+
+    if(gain == 0 || compensation == 0) {
+      // Error: Null pointer //
+      return PIXY_ERROR_INVALID_PARAMETER;
+    }
+
+    printf("exp:%08x\n", exposure);
+
+    *gain         = exposure & 0xFF;
+    *compensation = 0xFFFF & (exposure >> 8);
+
+    return 0;
   }
 
   int pixy_cam_set_brightness(uint8_t brightness)
   {
-    //////////////////////////////////////
-    // UNTESTED                         //
-    //////////////////////////////////////
+    int chirp_response;
+    int return_value;
 
+    return_value = pixy_command("cam_setBrightness", CRP_INT8, brightness, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+
+    return return_value;
   }
 
-  uint8_t pixy_cam_get_brightness()
+  int pixy_cam_get_brightness()
   {
-    //////////////////////////////////////
-    // UNTESTED                         //
-    //////////////////////////////////////
+    int chirp_response;
+    int return_value;
 
+    return_value = pixy_command("cam_getBrightness", END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+
+    if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
+
+
 
   uint32_t pixy_cam_get_position(int axis)
   {
@@ -260,11 +291,36 @@ extern "C"
 
   }
 
-  void pixy_get_firmware_version(void)
+  int pixy_get_firmware_version(uint16_t * major, uint16_t * minor, uint16_t * build)
   {
     //////////////////////////////////////
     // UNTESTED                         //
     //////////////////////////////////////
+    uint16_t * pixy_version;
+    uint32_t   version_length;
+    uint32_t   response;
+    uint16_t   version[3];
+    int        return_value;
+    int        chirp_response;
 
+    if(major == 0 || minor == 0 || build == 0) {
+      // Error: Null pointer //
+      return PIXY_ERROR_INVALID_PARAMETER;
+    }
+
+    return_value = pixy_command("version",  END_OUT_ARGS, &response, &version_length, &pixy_version, END_IN_ARGS);
+
+    if (return_value < 0) {
+      // Error //
+      return return_value;
+    }
+
+    memcpy((void *) version, pixy_version, 3 * sizeof(uint16_t));
+
+    *major = version[0];
+    *minor = version[1];
+    *build = version[2];
+
+    return 0;
   }
 }
