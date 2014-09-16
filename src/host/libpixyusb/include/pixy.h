@@ -196,22 +196,28 @@ extern "C"
   */
   int pixy_cam_get_brightness();
 
-
-
   /**
     @brief     Get pixy servo axis position.
-    TODO: Add description of usage.
+    @param     channel  Channel value. Range: [0, 1]
+    @return     Position of channel. Range: [0, 999]
+    @return     Negative  Error
   */
-  uint32_t pixy_cam_get_position(int axis);
+  int pixy_rcs_get_position(uint8_t channel);
 
   /**
     @brief     Set pixy servo axis position.
-    TODO: Add description of usage.
+    @param     channel  Channel value. Range: [0, 1]
+    @param     position Position value of the channel. Range: [0, 999]
+    @return      0         Success
+    @return      Negative  Error
   */
-  uint32_t pixy_rcs_set_position(int axis, uint16_t position);
+  int pixy_rcs_set_position(uint8_t channel, uint16_t position);
 
-  // TODO //
-  void pixy_rcs_set_frequency(void);
+  /**
+    @brief     Set pixy servo pulse width modulation (PWM) frequency.
+    @param     frequency Range: [20, 300] Hz Default: 50 Hz
+  */
+  int pixy_rcs_set_frequency(uint16_t frequency);
 
   /**
     @brief    Get pixy firmware version.

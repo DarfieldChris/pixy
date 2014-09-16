@@ -42,7 +42,7 @@ int main(int argc, char * argv[])
   // Catch CTRL+C (SIGINT) signals //
   signal(SIGINT, handle_SIGINT);
 
-  printf("Hello Pixy: libpixyusb Version: %s\n", __LIBPIXY_VERSION__);
+  printf("Hello Pixy:\n libpixyusb Version: %s\n", __LIBPIXY_VERSION__);
 
   // Connect to Pixy //
   pixy_init_status = pixy_init();
@@ -59,13 +59,12 @@ int main(int argc, char * argv[])
 
   // Request Pixy firmware version //
   {
-    uint16_t * pixy_version;
-    uint32_t   version_length;
-    uint32_t   response;
-    uint16_t   version[3];
-    int        return_value;
+    uint16_t major;
+    uint16_t minor;
+    uint16_t build;
+    int      return_value;
 
-    return_value = pixy_command("version",  END_OUT_ARGS, &response, &version_length, &pixy_version, END_IN_ARGS);
+    return_value = pixy_get_firmware_version(&major, &minor, &build);
 
     if (return_value) {
       // Error //
@@ -75,8 +74,7 @@ int main(int argc, char * argv[])
       return return_value;
     } else {
       // Success //
-      memcpy((void *) version, pixy_version, 3 * sizeof(uint16_t));
-      printf("Pixy Firmware Version: %d.%d.%d\n", version[0], version[1], version[2]);
+      printf(" Pixy Firmware Version: %d.%d.%d\n", major, minor, build);
     }
   }
 
@@ -116,6 +114,8 @@ int main(int argc, char * argv[])
     // Set auto white balance back to disabled //
     pixy_command("cam_setAWB", 0x01, 0, 0, &response, 0);
   }
+
+  printf("Detecting blocks...\n");
 
   for(;;)
   {

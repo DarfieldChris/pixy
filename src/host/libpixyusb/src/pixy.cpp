@@ -48,7 +48,7 @@ extern "C"
   {
     va_list arguments;
     int     return_value;
-    
+
     if(!pixy_initialized) return -1;
 
     va_start(arguments, name);
@@ -265,37 +265,52 @@ extern "C"
     }
   }
 
-
-
-  uint32_t pixy_cam_get_position(int axis)
+  int pixy_rcs_get_position(uint8_t channel)
   {
-    //////////////////////////////////////
-    // UNTESTED                         //
-    //////////////////////////////////////
+    int chirp_response;
+    int return_value;
 
+    return_value = pixy_command("rcs_getPos", CRP_INT8, channel, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+
+    if (return_value < 0) {
+      // Error //
+      return return_value;
+    } else {
+      // Success //
+      return chirp_response;
+    }
   }
 
-  uint32_t pixy_rcs_set_position(int axis, uint16_t position)
+  int pixy_rcs_set_position(uint8_t channel, uint16_t position)
   {
-    //////////////////////////////////////
-    // UNTESTED                         //
-    //////////////////////////////////////
+    int chirp_response;
+    int return_value;
 
+    if(channel > 1 || position > 999) {
+      return PIXY_ERROR_INVALID_PARAMETER;
+    }   
+
+    return_value = pixy_command("rcs_setPos", CRP_INT8, channel, CRP_INT16, position, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+
+    return return_value;
   }
 
-  void pixy_rcs_set_frequency(void)
+  int pixy_rcs_set_frequency(uint16_t frequency)
   {
-    //////////////////////////////////////
-    // UNTESTED                         //
-    //////////////////////////////////////
+    int chirp_response;
+    int return_value;
 
+    if(frequency < 20 || frequency > 300) {
+      return PIXY_ERROR_INVALID_PARAMETER;
+    }
+
+    return_value = pixy_command("rcs_setFreq", CRP_INT16, frequency, END_OUT_ARGS, &chirp_response, END_IN_ARGS);
+
+    return return_value;
   }
 
   int pixy_get_firmware_version(uint16_t * major, uint16_t * minor, uint16_t * build)
   {
-    //////////////////////////////////////
-    // UNTESTED                         //
-    //////////////////////////////////////
     uint16_t * pixy_version;
     uint32_t   version_length;
     uint32_t   response;
