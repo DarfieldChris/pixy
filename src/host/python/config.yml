@@ -1,0 +1,9 @@
+#
+# config.yml - configuration file for python script pixy.py
+#
+
+#
+# log_level ... can be one of DEBUG, INFO, WARNING, ERROR, NONE
+#
+log_level: DEBUG
+

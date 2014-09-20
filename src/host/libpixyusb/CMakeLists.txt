@@ -24,12 +24,19 @@ file(STRINGS "cmake/VERSION" LIBPIXY_VERSION)
 add_definitions(-D__LIBPIXY_VERSION__="${LIBPIXY_VERSION}")
 
 
-add_library (pixyusb STATIC src/chirpreceiver.cpp
-                            src/pixyinterpreter.cpp
-                            src/pixy.cpp
-                            src/usblink.cpp
-                            src/utils/timer.cpp
-                            ../../common/chirp.cpp)
+add_library (core OBJECT src/chirpreceiver.cpp
+                         src/pixyinterpreter.cpp
+                         src/pixy.cpp
+                         src/usblink.cpp
+                         src/utils/timer.cpp
+                         ../../common/chirp.cpp)
+
+add_library (pixyusb STATIC $<TARGET_OBJECTS:core>)
+
+add_library (pixy_usb SHARED $<TARGET_OBJECTS:core>)
+target_link_libraries (pixy_usb ${Boost_LIBRARIES})
+target_link_libraries (pixy_usb ${LIBUSB_1_LIBRARY})
+set_target_properties(pixy_usb PROPERTIES OUTPUT_NAME pixyusb)
 
 set (THIS_LIB libpixyusb)
 
@@ -41,5 +48,6 @@ include_directories (src
                      ${LIBUSB_1_INCLUDE_DIRS})
 
 install (TARGETS pixyusb DESTINATION lib)
+install (TARGETS pixy_usb DESTINATION lib)
 install (FILES include/pixy.h DESTINATION include)
 install (FILES ../../common/pixydefs.h DESTINATION include)

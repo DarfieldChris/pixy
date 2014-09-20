@@ -46,6 +46,7 @@ int main(int argc, char * argv[])
 
   // Connect to Pixy //
   pixy_init_status = pixy_init();
+  printf("Hello Pixy: initialized Pixy - %d\n", pixy_init_status);^M
 
   // Was there an error initializing pixy? //
   if(!pixy_init_status == 0)
@@ -53,6 +54,7 @@ int main(int argc, char * argv[])
     // Error initializing Pixy //
     printf("pixy_init(): ");
     pixy_error(pixy_init_status);
+    printf("    If on RPi did you 'su' before running?\n");
 
     return pixy_init_status;
   }
@@ -119,12 +121,15 @@ int main(int argc, char * argv[])
 
   for(;;)
   {
+    printf(".");^M
+    fflush(stdout);
+
     // Get blocks from Pixy //
     blocks_copied = pixy_get_blocks(BLOCK_BUFFER_SIZE, &blocks[0]);
 
     if(blocks_copied < 0) {
       // Error: pixy_get_blocks //
-      printf("pixy_get_blocks(): ");
+      printf("\npixy_get_blocks(): ");
       pixy_error(blocks_copied);
       usleep(250000);
     }
@@ -134,7 +139,7 @@ int main(int argc, char * argv[])
 
       switch (blocks[index].type) {
         case TYPE_NORMAL:
-          printf("[sig:%2u w:%3u h:%3u x:%3u y:%3u]\n",
+          printf("\n[sig:%2u w:%3u h:%3u x:%3u y:%3u]\n",
                  blocks[index].signature,
                  blocks[index].width,
                  blocks[index].height,
@@ -143,7 +148,7 @@ int main(int argc, char * argv[])
         break;
 
         case TYPE_COLOR_CODE:
-          printf("[sig:%2u w:%3u h:%3u x:%3u y:%3u ang:%3i]\n",
+          printf("\n[sig:%2u w:%3u h:%3u x:%3u y:%3u ang:%3i]\n",
                  blocks[index].signature,
                  blocks[index].width,
                  blocks[index].height,

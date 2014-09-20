@@ -65,25 +65,29 @@ extern "C"
     interpreter.close();
   }
 
-  void pixy_error(int error_code)
+  const char *pixy_error_str(int error_code)
   {
     int index;
 
-    // Convert pixy error code to string and display to stdout //
+    // Convert pixy error code to string //
 
     index = 0;
 
     while(PIXY_ERROR_TABLE[index].text != 0) {
 
       if(PIXY_ERROR_TABLE[index].error == error_code) {
-        printf("%s\n", PIXY_ERROR_TABLE[index].text);
-        return;
+        return PIXY_ERROR_TABLE[index].text;
       }
 
       index += 1;
     }
 
-    printf("Undefined error: [%d]\n", error_code);
+    return "Undefined error";
+  }
+
+  void pixy_error(int error_code)
+  {
+    printf("%s\n", pixy_error_str(error_code));
   }
 
   int pixy_led_set_RGB(uint8_t red, uint8_t green, uint8_t blue)

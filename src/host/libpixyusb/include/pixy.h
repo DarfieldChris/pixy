@@ -86,6 +86,7 @@ extern "C"
     @param[in] error_code  Pixy error code
   */
   void pixy_error(int error_code);
+  const char *pixy_error_str(int error_code);
 
   /**
     @brief  Set color of pixy LED.
