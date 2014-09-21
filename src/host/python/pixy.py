@@ -35,8 +35,14 @@ TYPE_COLOR_CODE = 1
 
 BLOCK_BUFFER_SIZE = 50
 
+PIXELS_WIDTH = 640
+PIXELS_HEIGHT = 480
+
 BlockArray = Block*BLOCK_BUFFER_SIZE
 blocks = BlockArray()
+
+PixelArray = c_uint8*PIXELS_WIDTH*PIXELS_HEIGHT
+pixels = PixelArray()
 
 class PixyInterpreter:
     """Class to deal with pixy camera"""
@@ -160,6 +166,32 @@ class PixyInterpreter:
         else:             # success
             return response.value
 
+    def cam_setMode(self, mode):
+        response = c_int32(0) 
+        self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_uint8, c_int, c_void_p, c_int]
+        rcode = self._pixy.pixy_command("cam_setMode",  # String ID for remote procedure
+                                c_int(1),              # Length (in bytes) of first arg 
+                                c_uint8(mode),       # 1st arg ... enable 
+                                c_int(0),              # seperator ... end of input values
+                                byref(response),       # Pointer for return value of RPC
+                                c_int(0))              # seperator ... end of output values)
+        if (rcode < 0):   # error
+            return rcode
+        else:             # success
+            return response.value
+
+    def cam_getMode(self):
+        response = c_int32(0)
+        self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_void_p, c_int]
+        rcode = self._pixy.pixy_command("cam_getMode",  # String ID for remote procedure
+                                c_int(0),              # seperator ... end of input values
+                                byref(response),       # Pointer for return value of RPC
+                                c_int(0))              # seperator ... end of output values)
+        if (rcode < 0):   # error
+            return rcode
+        else:             # success
+            return response.value
+
     def cam_getAWB(self):
         response = c_int32(0)
         self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_void_p, c_int]
@@ -168,6 +200,32 @@ class PixyInterpreter:
                                 byref(response),       # Pointer for return value of RPC
                                 c_int(0))              # seperator ... end of output values)
         if (rcode < 0):   # error
+            return rcode
+        else:             # success
+            return response.value
+
+    def cam_getFrame(self, mode, xoffset, yoffset, width, height):
+        response = c_int32(0)
+        self._pixy.pixy_command.argtypes = [c_char_p, 
+                                            c_int, c_uint8,
+                                            c_int, c_uint16,
+                                            c_int, c_uint16,
+                                            c_int, c_uint16,
+                                            c_int, c_uint16,
+                                            c_int,
+                                            c_void_p, c_void_p, c_int]
+        rcode = self._pixy.pixy_command("cam_getFrame",
+                                c_int(1), c_uint8(mode),
+                                c_int(2), c_uint16(xoffset),             
+                                c_int(2), c_uint16(yoffset),             
+                                c_int(2), c_uint16(width),             
+                                c_int(2), c_uint16(height),             
+                                c_int(0),
+                                byref(response),
+                                byref(pixels),      
+                                c_int(0))              
+        if (rcode < 0):   # error
+            logging.warning("pixy: cam_getFrame failed - %d - %d", rcode, response.value)
             return rcode
         else:             # success
             return response.value
@@ -191,6 +249,8 @@ if __name__ == '__main__':
         time.sleep(5)
         pixy.init()
     logging.info("pixy: initialized connection!")
+
+    pixy.cam_setMode(1)
 
     version = pixy.get_firmware_version()
     logging.info("pixy: (return code - %d) FIRMWARE %u.%u.%u", version[0], version[1], version[2], version[3])
@@ -267,4 +327,6 @@ if __name__ == '__main__':
                 blocks[i].angle)
         else:
             logging.info("BLOCK[???]: ???")
+
+rcode = pixy.cam_getFrame(0, 0, 0, PIXELS_WIDTH, PIXELS_HEIGHT)
 
