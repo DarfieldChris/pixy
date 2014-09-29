@@ -11,12 +11,14 @@
 
 # Standard Library Imports
 from ctypes import CDLL
-from ctypes import c_char_p, c_uint8, c_uint16, c_uint32, c_int16, c_int32, c_int
+from ctypes import c_char_p, c_uint8, c_int8, c_uint16, c_uint32, c_int16, c_int32, c_int
 from ctypes import c_void_p, pointer, Structure, byref
 import logging
 import time
 
 # Third Party Imports
+from PIL import Image
+import SimpleCV
 
 #Local Application/Library Specific Imports
 import config
@@ -35,14 +37,18 @@ TYPE_COLOR_CODE = 1
 
 BLOCK_BUFFER_SIZE = 50
 
-PIXELS_WIDTH = 640
-PIXELS_HEIGHT = 480
+PIXELS_WIDTH =1280
+PIXELS_HEIGHT = 800
+PIXEL_COUNT = PIXELS_WIDTH*PIXELS_HEIGHT
 
 BlockArray = Block*BLOCK_BUFFER_SIZE
 blocks = BlockArray()
 
-PixelArray = c_uint8*PIXELS_WIDTH*PIXELS_HEIGHT
+PixelArray = c_uint8*PIXEL_COUNT
 pixels = PixelArray()
+red = PixelArray()
+green = PixelArray()
+blue = PixelArray()
 
 class PixyInterpreter:
     """Class to deal with pixy camera"""
@@ -154,10 +160,10 @@ class PixyInterpreter:
  
     def cam_setAWB(self, enable):
         response = c_int32(0) 
-        self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_uint8, c_int, c_void_p, c_int]
+        self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_int, c_int, c_void_p, c_int]
         rcode = self._pixy.pixy_command("cam_setAWB",  # String ID for remote procedure
                                 c_int(1),              # Length (in bytes) of first arg 
-                                c_uint8(enable),       # 1st arg ... enable 
+                                c_int(enable),         # 1st arg ... enable 
                                 c_int(0),              # seperator ... end of input values
                                 byref(response),       # Pointer for return value of RPC
                                 c_int(0))              # seperator ... end of output values)
@@ -168,10 +174,10 @@ class PixyInterpreter:
 
     def cam_setMode(self, mode):
         response = c_int32(0) 
-        self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_uint8, c_int, c_void_p, c_int]
+        self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_int, c_int, c_void_p, c_int]
         rcode = self._pixy.pixy_command("cam_setMode",  # String ID for remote procedure
                                 c_int(1),              # Length (in bytes) of first arg 
-                                c_uint8(mode),       # 1st arg ... enable 
+                                c_int(mode),           # 1st arg ... enable 
                                 c_int(0),              # seperator ... end of input values
                                 byref(response),       # Pointer for return value of RPC
                                 c_int(0))              # seperator ... end of output values)
@@ -204,32 +210,96 @@ class PixyInterpreter:
         else:             # success
             return response.value
 
-    def cam_getFrame(self, mode, xoffset, yoffset, width, height):
+    def cam_getFrame(self, mode=0x21, xoffset=0, yoffset=0, width=320, height=200):
         response = c_int32(0)
+        resp_fourcc = c_uint32(0)
+        resp_renderflags = c_int8(0)
+        resp_width = c_uint16(0)
+        resp_height = c_uint16(0)
+        resp_numPixels = c_uint32(0)
+        pixel = c_uint8(0)
+        resp_ppixel = pointer(pixel)
+
         self._pixy.pixy_command.argtypes = [c_char_p, 
-                                            c_int, c_uint8,
-                                            c_int, c_uint16,
-                                            c_int, c_uint16,
-                                            c_int, c_uint16,
-                                            c_int, c_uint16,
+                                            c_int, c_int,
+                                            c_int, c_int,
+                                            c_int, c_int,
+                                            c_int, c_int,
+                                            c_int, c_int,
                                             c_int,
-                                            c_void_p, c_void_p, c_int]
+                                            c_void_p, c_void_p, c_void_p,
+                                            c_void_p, c_void_p, c_void_p, c_void_p,
+                                            c_int]
         rcode = self._pixy.pixy_command("cam_getFrame",
-                                c_int(1), c_uint8(mode),
-                                c_int(2), c_uint16(xoffset),             
-                                c_int(2), c_uint16(yoffset),             
-                                c_int(2), c_uint16(width),             
-                                c_int(2), c_uint16(height),             
+                                c_int(1), c_int(mode),
+                                c_int(2), c_int(xoffset),             
+                                c_int(2), c_int(yoffset),             
+                                c_int(2), c_int(width),             
+                                c_int(2), c_int(height),             
                                 c_int(0),
                                 byref(response),
+                                byref(resp_fourcc),
+                                byref(resp_renderflags),
+                                byref(resp_width),
+                                byref(resp_height),
+                                byref(resp_numPixels),
                                 byref(pixels),      
                                 c_int(0))              
         if (rcode < 0):   # error
             logging.warning("pixy: cam_getFrame failed - %d - %d", rcode, response.value)
-            return rcode
+            return [rcode]
         else:             # success
-            return response.value
+            return [response.value,
+                    resp_fourcc.value, resp_renderflags.value,
+                    resp_width.value, resp_height.value, resp_numPixels.value,
+                    pixels]
 
+    def cam_getFrame2(self, mode=0x21, xoffset=0, yoffset=0, width=320, height=200):
+        response = c_int32(0)
+        resp_fourcc = c_uint32(0)
+        resp_renderflags = c_int8(0)
+        resp_width = c_uint16(0)
+        resp_height = c_uint16(0)
+        resp_numPixels = c_uint32(0)
+
+        self._pixy.pixy_cam_getFrame.argtypes = [c_int,
+                                            c_int, c_int,
+                                            c_int, c_int,
+                                            c_void_p, c_void_p, c_void_p,
+                                            c_void_p, c_void_p, c_void_p, c_void_p]
+        rcode = self._pixy.pixy_cam_getFrame(
+                                c_int(mode),c_int(xoffset),c_int(yoffset),             
+                                c_int(width),c_int(height),             
+                                byref(response),
+                                byref(resp_fourcc),
+                                byref(resp_renderflags),
+                                byref(resp_width),
+                                byref(resp_height),
+                                byref(resp_numPixels),
+                                pixels)              
+        if (rcode < 0):   # error
+            logging.warning("pixy: cam_getFrame failed - %d - %d", rcode, response.value)
+            return [rcode]
+        else:             # success
+            return [response.value,
+                    resp_fourcc.value, resp_renderflags.value,
+                    resp_width.value, resp_height.value, resp_numPixels.value,
+                    pixels]
+
+    def renderBA81(self, renderFlags, width, height, frameLen, frame, red, green, blue):
+        self._pixy.renderBA81.argtypes = [c_uint8, c_uint16, c_uint16, c_uint32,
+                                          c_void_p, c_void_p, c_void_p, c_void_p]
+        rcode = self._pixy.renderBA81(
+                                      c_uint8(renderFlags),
+                                      c_uint16(width), c_uint16(height), c_uint32(frameLen),
+                                      pixels, red, green, blue)
+        return rcode
+
+    def FOURCC(self, type):
+        self._pixy.pixy_FOURCC_to_string.argtypes = [c_uint32]
+        self._pixy.pixy_FOURCC_to_string.restype = c_char_p
+
+        return self._pixy.pixy_FOURCC_to_string(c_uint32(type))
 
 if __name__ == '__main__':
     # this is the code that is run if this module is run as the main module
@@ -250,13 +320,14 @@ if __name__ == '__main__':
         pixy.init()
     logging.info("pixy: initialized connection!")
 
-    pixy.cam_setMode(1)
+    #pixy.cam_setMode(0)
+    logging.info ("camera mode is %d\n", pixy.cam_getMode())
 
     version = pixy.get_firmware_version()
     logging.info("pixy: (return code - %d) FIRMWARE %u.%u.%u", version[0], version[1], version[2], version[3])
 
-    rcode = pixy.led_set_RGB(5,5,5)
-    logging.info("pixy: led_set_RGB - returned %d", rcode)
+    #rcode = pixy.led_set_RGB(5,5,5)
+    #logging.info("pixy: led_set_RGB - returned %d", rcode)
 
     rcode = pixy.led_get_max_current()
     logging.info("pixy: led max current: %d", rcode)
@@ -264,42 +335,42 @@ if __name__ == '__main__':
         rcode = 254
     else:
         rcode = rcode*2
-    rc = pixy.led_set_max_current(rcode)
-    logging.info("pixy: setting max current to %d - returned %d", rcode, rc)
+    #rc = pixy.led_set_max_current(rcode)
+    #logging.info("pixy: setting max current to %d - returned %d", rcode, rc)
     rcode = pixy.led_get_max_current()
     logging.info("pixy: led max current now reads: %d", rcode)
-    rc = pixy.led_set_max_current(700)
+    #rc = pixy.led_set_max_current(700)
 
     pixy.cam_set_auto_white_balance(1)
-    pixy.cam_get_auto_white_balance()
+    logging.info("auto_white balance set to %d\n", pixy.cam_get_auto_white_balance())
 
-    pixy.cam_set_white_balance_value(2,2,2)
+    #pixy.cam_set_white_balance_value(2,2,2)
     pixy.cam_get_white_balance_value()
 
     pixy.cam_set_auto_exposure_compensation(1)
-    pixy.cam_get_auto_exposure_compensation()
+    logging.info("auto exposure compensation set to %d\n", pixy.cam_get_auto_exposure_compensation())
 
-    pixy.cam_set_exposure_compensation(1,2)
+    #pixy.cam_set_exposure_compensation(1,2)
     pixy.cam_get_exposure_compensation()
 
-    pixy.cam_set_brightness(5)
-    pixy.cam_get_brightness()
+    pixy.cam_set_brightness(90)
+    logging.info("brightness set to %d\n", pixy.cam_get_brightness())
 
     pixy.rcs_get_position(0)
-    pixy.rcs_set_position(0, 5)
+    #pixy.rcs_set_position(0, 5)
 
-    pixy.rcs_set_frequency(50)
+    #pixy.rcs_set_frequency(50)
 
     rcode = pixy.cam_getAWB()
     logging.info("pixy: cam_getAWB: %d", rcode)
     newSet = 0
     if (rcode == 0):
         newSet = 1
-    rc = pixy.cam_setAWB(newSet)
-    logging.info("pixy: cam_setAWB %d - returned %d", newSet, rc)
+    #rc = pixy.cam_setAWB(newSet)
+    #logging.info("pixy: cam_setAWB %d - returned %d", newSet, rc)
     rcode = pixy.cam_getAWB()
     logging.info("pixy: cam_getAWB now reads: %d", rcode)
-    rc = pixy.cam_setAWB(0)
+    #rc = pixy.cam_setAWB(0)
 
     blocks_copied = pixy.get_blocks()
     if (blocks_copied < 0):
@@ -328,5 +399,20 @@ if __name__ == '__main__':
         else:
             logging.info("BLOCK[???]: ???")
 
-rcode = pixy.cam_getFrame(0, 0, 0, PIXELS_WIDTH, PIXELS_HEIGHT)
+    rcode = pixy.cam_getFrame2(mode=0x21, width=PIXELS_WIDTH,height=PIXELS_HEIGHT)
+    fourcc = pixy.FOURCC(rcode[1])
+    logging.info("cam_getFrame2 returned %d - %s", rcode[0], fourcc)
 
+    pixy.renderBA81(rcode[2], rcode[3], rcode[4], rcode[5], rcode[6], red, green, blue)
+
+    img_width = rcode[3]-2
+    img_height = rcode[4]-2
+    img = Image.new("RGB", (img_width, img_height))
+    for y in range (0, rcode[4]-2):
+        for x in range (0, rcode[3]-2):
+            img.putpixel((x,y),
+                         (red[y*img_width + x], blue[y*img_width + x], green[y*img_width + x]))
+
+    i = SimpleCV.Image(img)
+    i.show()
+    img.show()

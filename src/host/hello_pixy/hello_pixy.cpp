@@ -21,9 +21,65 @@
 #include "pixy.h"
 
 #define BLOCK_BUFFER_SIZE    25
+#define FOURCC(a, b, c, d)  (((uint32_t)a<<0)|((uint32_t)b<<8)|((uint32_t)c<<16)|((uint32_t)d<<24))
 
 // Pixy Block buffer // 
 struct Block blocks[BLOCK_BUFFER_SIZE];
+
+
+int parseFOURCC(uint32_t type) {
+    int res;
+    // choose fourcc for representing formats fourcc.org
+    if (type==FOURCC('B','A','8','1'))
+        res = 1;
+    else if (type==FOURCC('C','C','Q','1'))
+        res = 2;
+    else if (type==FOURCC('C', 'C', 'B', '1'))
+        res = 3;
+    else if (type==FOURCC('C', 'M', 'V', '1'))
+        res = 4;
+    else // format not recognized
+        res = 0;
+}
+
+int getFrame(int32_t *presponse, 
+    uint32_t *pfourcc,
+    int8_t *prenderflags,
+    uint16_t *pwidth, uint16_t *pheight,
+    uint32_t *pnumPixels,
+    uint8_t **pframe)
+{
+
+    int ret;
+
+    *presponse = 0;
+    ret=0;
+    //printf("Before call: %p\n", (void *)frame);
+    ret = pixy_command("cam_getFrame",  // String id for remote procedure
+				 0x01,0x21,      // mode
+                                 0x02,0,         // xoffset
+                                 0x02,0,         // yoffset
+                                 0x02,320,       // width
+                                 0x02,200,       // height
+                                 0,              // separator
+                                 presponse,      // pointer to mem address for return value
+				 pfourcc,
+				 prenderflags,
+				 pwidth,
+				 pheight,
+				 pnumPixels,
+                                 pframe,     // pointer to mem address for returned frame
+                                 0);
+    if (ret < 0) {
+	return ret;
+    } else {
+        // convert type to something a little more readable
+        *pfourcc = parseFOURCC(*pfourcc);
+        return *presponse;
+    }
+}
+
+
 
 void handle_SIGINT(int unused)
 {
@@ -33,8 +89,11 @@ void handle_SIGINT(int unused)
   exit(0);
 }
 
+
 int main(int argc, char * argv[])
 {
+  int     return_value, res;
+
   int      index;
   int      blocks_copied;
   int      pixy_init_status;
@@ -46,7 +105,7 @@ int main(int argc, char * argv[])
 
   // Connect to Pixy //
   pixy_init_status = pixy_init();
-  printf("Hello Pixy: initialized Pixy - %d\n", pixy_init_status);^M
+  printf("Hello Pixy: initialized Pixy - %d\n", pixy_init_status);
 
   // Was there an error initializing pixy? //
   if(!pixy_init_status == 0)
@@ -70,7 +129,7 @@ int main(int argc, char * argv[])
 
     if (return_value) {
       // Error //
-      printf("Failed to retrieve Pixy firmware version. ");
+      printf("Failed to retrieve Pixy firmware version. %d", return_value);
       pixy_error(return_value);
 
       return return_value;
@@ -80,10 +139,49 @@ int main(int argc, char * argv[])
     }
   }
 
+  
   // Pixy Command Examples //
   {
+    unsigned char pixels[907200];
+    uint8_t *frame = (uint8_t *)&pixels[0];
+    //uint8_t *frame;
     int32_t response;
-    int     return_value;
+    uint32_t fourcc;
+    int8_t renderflags;
+    uint16_t width, height;
+    uint32_t numPixels;
+
+    response = 0;
+    return_value=0;
+    //printf("Before call: %p\n", (void *)frame);
+    return_value = pixy_command("cam_getFrame",  // String id for remote procedure
+				 0x01,0x21,      // mode
+                                 0x02,0,         // xoffset
+                                 0x02,0,         // yoffset
+                                 0x02,320,       // width
+                                 0x02,200,       // height
+                                 0,              // separator
+                                 &response,      // pointer to mem address for return value
+				 &fourcc,
+				 &renderflags,
+				 &width,
+				 &height,
+				 &numPixels,
+                                 &frame,     // pointer to mem address for returned frame
+                                 0);
+    printf("Returned -  [%d] - %d - %d - %d - %d - %d %p\n", 
+             return_value, response ,
+	     parseFOURCC(fourcc), int(width), (int)height, (int)numPixels, (void *)frame);
+    fprintf(stderr,"getFrame returned: %d - %d\n", return_value, response);
+    pixy_error(return_value);
+    //exit(return_value);
+
+    return_value = getFrame(&response, &fourcc, &renderflags, &width, &height, &numPixels, &frame);
+    printf("Returned -  [%d] - %d - %d - %d - %d - %d %p\n", 
+             return_value, response ,
+	     int(fourcc), int(width), (int)height, (int)numPixels, (void *)frame);
+    fprintf(stderr,"getFrame returned: %d - %d\n", return_value, response);
+    pixy_error(return_value);
 
     // Execute remote procedure call "cam_setAWB" with one output (host->pixy) parameter (Value = 1)
     //
@@ -115,17 +213,20 @@ int main(int argc, char * argv[])
 
     // Set auto white balance back to disabled //
     pixy_command("cam_setAWB", 0x01, 0, 0, &response, 0);
+
   }
 
   printf("Detecting blocks...\n");
 
-  for(;;)
+  //for(;;)
   {
-    printf(".");^M
+    printf(".");
     fflush(stdout);
 
     // Get blocks from Pixy //
     blocks_copied = pixy_get_blocks(BLOCK_BUFFER_SIZE, &blocks[0]);
+
+    //res = cam_getFrame();
 
     if(blocks_copied < 0) {
       // Error: pixy_get_blocks //
@@ -139,7 +240,7 @@ int main(int argc, char * argv[])
 
       switch (blocks[index].type) {
         case TYPE_NORMAL:
-          printf("\n[sig:%2u w:%3u h:%3u x:%3u y:%3u]\n",
+          printf("\n[sig:%2u w:%3u h:%3u x:%3u y:%3u]",
                  blocks[index].signature,
                  blocks[index].width,
                  blocks[index].height,
@@ -148,7 +249,7 @@ int main(int argc, char * argv[])
         break;
 
         case TYPE_COLOR_CODE:
-          printf("\n[sig:%2u w:%3u h:%3u x:%3u y:%3u ang:%3i]\n",
+          printf("\n[sig:%2u w:%3u h:%3u x:%3u y:%3u ang:%3i]",
                  blocks[index].signature,
                  blocks[index].width,
                  blocks[index].height,
@@ -157,6 +258,7 @@ int main(int argc, char * argv[])
                  blocks[index].angle);
         break;
       }
+      printf("\n"); 
     }
 
     // Sleep for 1/10 sec //
