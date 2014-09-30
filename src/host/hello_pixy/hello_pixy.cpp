@@ -21,26 +21,10 @@
 #include "pixy.h"
 
 #define BLOCK_BUFFER_SIZE    25
-#define FOURCC(a, b, c, d)  (((uint32_t)a<<0)|((uint32_t)b<<8)|((uint32_t)c<<16)|((uint32_t)d<<24))
 
 // Pixy Block buffer // 
 struct Block blocks[BLOCK_BUFFER_SIZE];
 
-
-int parseFOURCC(uint32_t type) {
-    int res;
-    // choose fourcc for representing formats fourcc.org
-    if (type==FOURCC('B','A','8','1'))
-        res = 1;
-    else if (type==FOURCC('C','C','Q','1'))
-        res = 2;
-    else if (type==FOURCC('C', 'C', 'B', '1'))
-        res = 3;
-    else if (type==FOURCC('C', 'M', 'V', '1'))
-        res = 4;
-    else // format not recognized
-        res = 0;
-}
 
 int getFrame(int32_t *presponse, 
     uint32_t *pfourcc,
@@ -73,8 +57,6 @@ int getFrame(int32_t *presponse,
     if (ret < 0) {
 	return ret;
     } else {
-        // convert type to something a little more readable
-        *pfourcc = parseFOURCC(*pfourcc);
         return *presponse;
     }
 }
@@ -171,7 +153,7 @@ int main(int argc, char * argv[])
                                  0);
     printf("Returned -  [%d] - %d - %d - %d - %d - %d %p\n", 
              return_value, response ,
-	     parseFOURCC(fourcc), int(width), (int)height, (int)numPixels, (void *)frame);
+	     fourcc, int(width), (int)height, (int)numPixels, (void *)frame);
     fprintf(stderr,"getFrame returned: %d - %d\n", return_value, response);
     pixy_error(return_value);
     //exit(return_value);

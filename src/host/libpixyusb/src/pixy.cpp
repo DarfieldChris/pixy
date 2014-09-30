@@ -343,9 +343,56 @@ extern "C"
     return 0;
   }
 
+  //
+  // All functions from this point on added for 
+  // python interface (pixython) - CSN
+  //
+
+  int pixy_cam_getFrame(int32_t mode, 
+			int32_t xoffset, int32_t yoffset, 
+			int32_t width, int32_t height,
+			int32_t *presponse, uint32_t *pfourcc, 
+			int8_t *prenderflags,
+			uint16_t *pwidth, uint16_t *pheight,
+			uint32_t *pnumPixels, uint8_t *pframe)
+  {
+    uint8_t *res_frame = (uint8_t *)0;
+    int ret;
+
+    *presponse = 0;
+
+    ret = pixy_command("cam_getFrame",  // String id for remote procedure
+			0x01,mode,      // mode
+                        0x02,xoffset,   // xoffset
+                        0x02,yoffset,   // yoffset
+                        0x02,width,     // width
+                        0x02,height,    // height
+                        0,              // separator
+                        presponse,      // pointer to mem address for return value
+			pfourcc,
+			prenderflags,
+			pwidth,
+			pheight,
+			pnumPixels,
+                        &res_frame,     // pointer to mem address for returned frame
+                        0);
+
+    if (ret < 0 ) {
+        // command failed
+	return ret;
+    } else if ( *presponse < 0 ) {
+        // command failed 
+        return *presponse;
+    } else {
+        // command succeeded
+        // copy returned frame into space provided by function caller
+        memcpy(pframe, res_frame, *pnumPixels);
+	return *presponse;
+    }
+  }
+
   char *pixy_FOURCC_to_string(uint32_t type) {
         char *res;
-    // choose fourcc for representing formats fourcc.org
     if (type==FOURCC('B','A','8','1'))
         res = "BA81";
     else if (type==FOURCC('C','C','Q','1'))
@@ -355,56 +402,14 @@ extern "C"
     else if (type==FOURCC('C', 'M', 'V', '1'))
         res = "CMV1";
     else // format not recognized
-        res = "???";
+        res = "????";
 
     return res;
   }
-
-  int pixy_cam_getFrame(int32_t mode, int32_t xoffset, int32_t yoffset, 
-			int32_t width, int32_t height,
-			int32_t *presponse, uint32_t *pfourcc, int8_t *prenderflags,
-			uint16_t *pwidth, uint16_t *pheight,
-			uint32_t *pnumPixels, uint8_t *pframe)
-{
-    uint8_t *res_frame = (uint8_t *)0;
-    int ret;
-
-    *presponse = 0;
-    ret=0;
-    //printf("Before call: %p\n", (void *)frame);
-    ret = pixy_command("cam_getFrame",  // String id for remote procedure
-				 0x01,mode,      // mode
-                                 0x02,xoffset,   // xoffset
-                                 0x02,yoffset,   // yoffset
-                                 0x02,width,     // width
-                                 0x02,height,    // height
-                                 0,              // separator
-                                 presponse,      // pointer to mem address for return value
-				 pfourcc,
-				 prenderflags,
-				 pwidth,
-				 pheight,
-				 pnumPixels,
-                                 &res_frame,     // pointer to mem address for returned frame
-                                 0);
-
-    if (ret < 0) {
-	return ret;
-    } else {
-        // convert type to something a little more readable
-        //*pfourcc = parseFOURCC(*pfourcc);
-        if (*presponse>=0) {
-	  memcpy(pframe, res_frame, *pnumPixels);
-	  //for (int i = 0; i < *pnumPixels; i++) {
-	  //printf("%p PIXEL[%d]: %d\n", (void *) res_frame, i, (int)res_frame[i]);
-	  //}
-	}
-	return *presponse;
-    }
-}
-
-void interpolateBayer(unsigned int width, unsigned int x, unsigned int y, unsigned char *pixel, unsigned int &r, unsigned int &g, unsigned int &b)
-{
+	
+  //  Next two functions taken (and modified) from pixy/src/host/pixymon/renderer.cpp
+  void interpolateBayer(unsigned int width, unsigned int x, unsigned int y, unsigned char *pixel, unsigned int &r, unsigned int &g, unsigned int &b)
+  {
     if (y&1)
     {
         if (x&1)
@@ -435,29 +440,22 @@ void interpolateBayer(unsigned int width, unsigned int x, unsigned int y, unsign
             b = *pixel;
         }
     }
-}
+  }
 
-int renderBA81(uint8_t renderFlags, uint16_t width, uint16_t height, uint32_t frameLen, 
+  int pixy_renderBA81(uint8_t renderFlags, uint16_t width, uint16_t height, uint32_t frameLen, 
 	       uint8_t *frame, uint8_t *red, uint8_t *green, uint8_t *blue)
-{
+  {
     uint16_t x, y;
     uint32_t *line;
     uint32_t r, g, b;
 
-    //memcpy(m_rawFrame.m_pixels, frame, width*height);
-    //m_rawFrame.m_width = width;
-    //m_rawFrame.m_height = height;
-
     // skip first line
     frame += width;
 
-    // don't render top and bottom rows, and left and rightmost columns because of color
-    // interpolation
-    //QImage img(width-2, height-2, QImage::Format_RGB32);
-
+    // NOTE: don't render top and bottom rows, and left and rightmost columns 
+    //       because of color interpolation
     for (y=1; y<height-1; y++)
     {
-        //line = (unsigned int *)img.scanLine(y-1);
         frame++;
         for (x=1; x<width-1; x++, frame++)
         {
@@ -470,17 +468,6 @@ int renderBA81(uint8_t renderFlags, uint16_t width, uint16_t height, uint32_t fr
         }
         frame++;
     }
-    // send image to ourselves across threads
-    // from chirp thread to gui thread
-    //emitImage(img);
-
-    //m_background = img;
-
-    //if (renderFlags&RENDER_FLAG_FLUSH)
-    //emitFlushImage();
-
     return 0;
-}
-
-
+  }
 }
