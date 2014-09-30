@@ -46,10 +46,11 @@ PixyPixelArray = c_uint8*PIXY_PIXEL_COUNT
 
 blocks = PixyBlockArray()
 
-pixels = PixyPixelArray()
-red    = PixyPixelArray()
-green  = PixyPixelArray()
-blue   = PixyPixelArray()
+pixy_buf = c_void_p(0)
+pixels   = PixyPixelArray()
+red      = PixyPixelArray()
+green    = PixyPixelArray()
+blue     = PixyPixelArray()
 
 class PixyInterpreter:
     """Class to deal with pixy camera"""
@@ -65,12 +66,15 @@ class PixyInterpreter:
         self._pixy = CDLL(self.pixylib)
 
     def __del__(self):
-        self._pixy.pixy_close()
+        self.close
 
     def init(self):
         self.rcodeInit = self._pixy.pixy_init()
         return self.rcodeInit
 
+    def close(self):
+        self._pixy.pixy_close()
+        
     def get_blocks(self):
         """"""
         return self._pixy.pixy_get_blocks(c_uint16(PIXY_BLOCK_BUFFER_SIZE),
@@ -214,7 +218,7 @@ class PixyInterpreter:
             return response.value
 
     # NOT VERY USEFUL
-    def XXXcam_getFrameXXX(self, mode=0x21, xoffset=0, yoffset=0, width=320, height=200):
+    def XXXcam_getFrame(self, mode=0x21, xoffset=0, yoffset=0, width=320, height=200):
         response = c_int32(0)
         resp_fourcc = c_uint32(0)
         resp_renderflags = c_int8(0)
@@ -222,7 +226,7 @@ class PixyInterpreter:
         resp_height = c_uint16(0)
         resp_numPixels = c_uint32(0)
         pixel = c_uint8(0)
-        resp_ppixel = pointer(pixel)
+        resp_ppixel = pointer(pixy_buf)
 
         self._pixy.pixy_command.argtypes = [c_char_p, 
                                             c_int, c_int,
@@ -247,7 +251,7 @@ class PixyInterpreter:
                                 byref(resp_width),
                                 byref(resp_height),
                                 byref(resp_numPixels),
-                                byref(pixels),      
+                                byref(pixy_buf),      
                                 c_int(0))              
         if (rcode < 0):   # error
             logging.warning("pixy: cam_getFrame failed - %d - %d", rcode, response.value)
@@ -256,7 +260,7 @@ class PixyInterpreter:
             return [response.value,
                     resp_fourcc.value, resp_renderflags.value,
                     resp_width.value, resp_height.value, resp_numPixels.value,
-                    pixels]
+                    pixy_buf]
 
     def cam_getFrame(self, mode=0x21, xoffset=0, yoffset=0, width=320, height=200):
         response = c_int32(0)
@@ -297,7 +301,7 @@ class PixyInterpreter:
                                       c_uint8(renderFlags),
                                       c_uint16(width), c_uint16(height),
                                       c_uint32(frameLen),
-                                      pixels, red, green, blue)
+                                      frame, red, green, blue)
         return rcode
 
     def FOURCC(self, type):
@@ -411,24 +415,31 @@ if __name__ == '__main__':
         else:
             logging.info("BLOCK[???]: ???")
 
-    rcode = pixy.cam_getFrame(mode=0x21, width=PIXY_PIXELS_WIDTH,
-                              height=PIXY_PIXELS_HEIGHT)
+    #pixy.close()
+    #time.sleep(1)
+    #while (pixy.init() >= 0):
+    rcode = pixy.XXXcam_getFrame(mode=0x21, width=PIXY_PIXELS_WIDTH,
+                                     height=PIXY_PIXELS_HEIGHT)
     fourcc = pixy.FOURCC(rcode[1])
     logging.info("cam_getFrame returned %d - %s", rcode[0], fourcc)
 
     if (fourcc == "BA81" ):
-        pixy.renderBA81(rcode[2], rcode[3], rcode[4], rcode[5], rcode[6],
-                        red, green, blue)
 
-        img_width = rcode[3]-2
-        img_height = rcode[4]-2
-        img = Image.new("RGB", (img_width, img_height))
+            img_width = rcode[3]-2
+            img_height = rcode[4]-2
+            img = Image.new("RGB", (img_width, img_height))
 
-        for y in range (0, rcode[4]-2):
-            for x in range (0, rcode[3]-2):
-                img.putpixel((x,y),
-                         (red[y*img_width + x], blue[y*img_width + x],
-                          green[y*img_width + x]))
+            pixy.renderBA81(rcode[2], rcode[3], rcode[4], rcode[5], rcode[6],
+                            red, green, blue)
 
-        i = SimpleCV.Image(img)
-        i.show()
+            for y in range (0, rcode[4]-2):
+                for x in range (0, rcode[3]-2):
+                    img.putpixel((x,y),
+                                 (red[y*img_width + x], blue[y*img_width + x],
+                                  green[y*img_width + x]))
+
+            i = SimpleCV.Image(img)
+            i.show()
+
+            #time.sleep(2.5)
+
