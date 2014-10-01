@@ -18,7 +18,7 @@ import time
 
 # Third Party Imports
 from PIL import Image
-import SimpleCV
+#import SimpleCV
 
 #Local Application/Library Specific Imports
 # --- NONE ---
@@ -55,7 +55,9 @@ blue     = PixyPixelArray()
 class PixyInterpreter:
     """Class to deal with pixy camera"""
 
-    pixylib = 'libpixyusb.so'
+    pixylib_unix = 'libpixyusb.so'
+    pixylib_mac = 'libpixyusb.dylib'
+
     rcodeInit = -1
 
     def __init__(self):
@@ -63,7 +65,11 @@ class PixyInterpreter:
         """
 
         # load the libpixyusb shared library
-        self._pixy = CDLL(self.pixylib)
+        try:
+            self._pixy = CDLL(self.pixylib)
+        except:
+            self._pixy = CDLL(self.pixylib_mac)
+
 
     def __del__(self):
         self.close
@@ -194,29 +200,27 @@ class PixyInterpreter:
             return response.value
 
     def cam_getMode(self):
-        response = c_int32(0)
-        self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_void_p, c_int]
-        rcode = self._pixy.pixy_command("cam_getMode", # String ID for remote procedure
-                                c_int(0),              # seperator ... end of input values
-                                byref(response),       # Pointer for return value of RPC
-                                c_int(0))              # seperator ... end of output values)
-        if (rcode < 0):   # error
-            return rcode
-        else:             # success
-            return response.value
+        return self.simple_cmd("cam_getMode")
 
     def cam_getAWB(self):
+        return self.simple_cmd("cam_getAWB")
+
+    def start_pgm (self): 
+        return self.simple_cmd("start")
+
+    def stop_pgm (self):
+        return self.simple_cmd("stop")
+
+    def simple_cmd(self, cmd):
         response = c_int32(0)
         self._pixy.pixy_command.argtypes = [c_char_p, c_int, c_void_p, c_int]
-        rcode = self._pixy.pixy_command("cam_getAWB",  # String ID for remote procedure
-                                c_int(0),              # seperator ... end of input values
-                                byref(response),       # Pointer for return value of RPC
-                                c_int(0))              # seperator ... end of output values)
+        rcode = self._pixy.pixy_command(cmd, c_int(0), byref(response), c_int(0))
         if (rcode < 0):   # error
             return rcode
         else:             # success
             return response.value
 
+    
     # NOT VERY USEFUL
     def XXXcam_getFrame(self, mode=0x21, xoffset=0, yoffset=0, width=320, height=200):
         response = c_int32(0)
@@ -310,6 +314,7 @@ class PixyInterpreter:
 
         return self._pixy.pixy_FOURCC_to_string(c_uint32(type))
 
+    
 if __name__ == '__main__':
     # this is the code that is run if this module is run as the main module
     # eg 'python pixy.py' OR 'python -i pixy.py'
@@ -415,15 +420,15 @@ if __name__ == '__main__':
         else:
             logging.info("BLOCK[???]: ???")
 
-    #pixy.close()
+    pixy.close()
     #time.sleep(1)
-    #while (pixy.init() >= 0):
-    rcode = pixy.XXXcam_getFrame(mode=0x21, width=PIXY_PIXELS_WIDTH,
+    while (pixy.init() >= 0):
+        rcode = pixy.cam_getFrame(mode=0x21, width=PIXY_PIXELS_WIDTH,
                                      height=PIXY_PIXELS_HEIGHT)
-    fourcc = pixy.FOURCC(rcode[1])
-    logging.info("cam_getFrame returned %d - %s", rcode[0], fourcc)
+        fourcc = pixy.FOURCC(rcode[1])
+        logging.info("cam_getFrame returned %d - %s", rcode[0], fourcc)
 
-    if (fourcc == "BA81" ):
+        if (fourcc == "BA81" ):
 
             img_width = rcode[3]-2
             img_height = rcode[4]-2
@@ -437,9 +442,10 @@ if __name__ == '__main__':
                     img.putpixel((x,y),
                                  (red[y*img_width + x], blue[y*img_width + x],
                                   green[y*img_width + x]))
+                    #logging.info(".")
 
-            i = SimpleCV.Image(img)
-            i.show()
-
-            #time.sleep(2.5)
+            #i = SimpleCV.Image(img)
+            #i.show()
+        pixy.close()
+        time.sleep(0)
 

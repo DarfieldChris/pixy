@@ -2,7 +2,7 @@
 #include "pixy.h"
 #include "pixyinterpreter.hpp"
 
-PixyInterpreter interpreter;
+PixyInterpreter *interpreter = NULL;
 
 // Pixy C API //
 
@@ -29,7 +29,9 @@ extern "C"
   {
     int return_value;
 
-    return_value = interpreter.init();
+    if ( interpreter == NULL ) interpreter = new PixyInterpreter();
+
+    return_value = interpreter->init();
 
     if(return_value == 0) 
     {
@@ -41,7 +43,7 @@ extern "C"
 
   int pixy_get_blocks(uint16_t max_blocks, struct Block * blocks)
   {
-    return interpreter.get_blocks(max_blocks, blocks);
+    return interpreter->get_blocks(max_blocks, blocks);
   }
 
   int pixy_command(const char *name, ...)
@@ -52,7 +54,7 @@ extern "C"
     if(!pixy_initialized) return -1;
 
     va_start(arguments, name);
-    return_value = interpreter.send_command(name, arguments);
+    return_value = interpreter->send_command(name, arguments);
     va_end(arguments);
 
     return return_value;
@@ -60,10 +62,19 @@ extern "C"
 
   void pixy_close()
   {
-    if(!pixy_initialized) return;
+    if(pixy_initialized)
+    {
+       pixy_initialized = false;
+       interpreter->close();
+    }
 
-    interpreter.close();
+    if (interpreter != NULL)
+    {
+        delete interpreter;
+        interpreter = NULL;
+    }
   }
+
 
   const char *pixy_error_str(int error_code)
   {

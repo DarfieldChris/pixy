@@ -37,7 +37,7 @@ int PixyInterpreter::init()
   USB_return_value = link_.open();
 
   if(USB_return_value < 0) {
-    fprintf(stderr, "libpixy: open failed.");
+    fprintf(stderr, "libpixy: open failed ... USB_return_value = %d.", USB_return_value);
     return USB_return_value;
   }
 
