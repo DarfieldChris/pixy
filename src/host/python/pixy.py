@@ -18,7 +18,7 @@ import time
 
 # Third Party Imports
 from PIL import Image
-#import SimpleCV
+import SimpleCV
 
 #Local Application/Library Specific Imports
 # --- NONE ---
@@ -66,7 +66,7 @@ class PixyInterpreter:
 
         # load the libpixyusb shared library
         try:
-            self._pixy = CDLL(self.pixylib)
+            self._pixy = CDLL(self.pixylib_unix)
         except:
             self._pixy = CDLL(self.pixylib_mac)
 
@@ -444,8 +444,8 @@ if __name__ == '__main__':
                                   green[y*img_width + x]))
                     #logging.info(".")
 
-            #i = SimpleCV.Image(img)
-            #i.show()
+            i = SimpleCV.Image(img)
+            i.show()
         pixy.close()
         time.sleep(0)
 
